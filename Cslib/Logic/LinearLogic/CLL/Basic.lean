@@ -31,16 +31,16 @@ namespace CLL
 inductive Proposition {Atom : Type u} : Type u where
 | atom (x : Atom)
 | atomDual (x : Atom)
-| one
-| zero
-| top
-| bot
-| tensor (a b : @Proposition Atom)
-| parr (a b : @Proposition Atom)
-| oplus (a b : @Proposition Atom)
-| with (a b : @Proposition Atom)
-| bang (a : @Proposition Atom)
-| quest (a : @Proposition Atom)
+| one -- 1 (multiplicative truth)
+| zero -- 0 (additive falsity)
+| top -- ⊤ (additive truth)
+| bot -- ⊥ (multiplicative falsity)
+| tensor (a b : @Proposition Atom) -- ⊗	(multiplicative conjunction)
+| parr (a b : @Proposition Atom) -- ⅋	(multiplicative disjunction)
+| oplus (a b : @Proposition Atom) -- ⊕ (additive disjunction)
+| with (a b : @Proposition Atom) -- & (additive conjunction)
+| bang (a : @Proposition Atom) -- ! (exponential conjunction)
+| quest (a : @Proposition Atom) -- ? (exponential disjunction)
 deriving DecidableEq, BEq
 
 /-- Positive propositions. -/
