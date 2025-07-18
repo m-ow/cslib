@@ -38,10 +38,20 @@ inductive Proposition {Atom : Type u} : Type u where
 | tensor (a b : @Proposition Atom) -- ⊗	(multiplicative conjunction)
 | parr (a b : @Proposition Atom) -- ⅋	(multiplicative disjunction)
 | oplus (a b : @Proposition Atom) -- ⊕ (additive disjunction)
-| with (a b : @Proposition Atom) -- & (additive conjunction)
+| withh (a b : @Proposition Atom) -- & (additive conjunction)
 | bang (a : @Proposition Atom) -- ! (exponential conjunction)
 | quest (a : @Proposition Atom) -- ? (exponential disjunction)
 deriving DecidableEq, BEq
+
+open Proposition
+local infix:35 (priority := high) " ⨂ " => tensor
+local infix:30 (priority := high) " ⊕ " => oplus
+local infix:35 (priority := high) " ⅋ " => parr
+local infix:30 (priority := high) " & " => withh
+local notation (priority := high) "⊥" => bot
+local notation (priority := high) "⊤" => top
+local notation:max (priority := high) "!" x:max => bang x
+local notation:max (priority := high) "?" x:max => quest x
 
 /-- Positive propositions. -/
 def Proposition.Pos (a : @Proposition Atom) : Prop :=
@@ -61,7 +71,7 @@ def Proposition.Neg (a : @Proposition Atom) : Prop :=
   | bot => True
   | top => True
   | parr _ _ => True
-  | Proposition.with _ _ => True
+  | Proposition.withh _ _ => True
   | quest _ => True
   | _ => False
 
@@ -84,8 +94,8 @@ def Proposition.dual (a : @Proposition Atom) : @Proposition Atom :=
   | top => zero
   | tensor a b => parr a.dual b.dual
   | parr a b => tensor a.dual b.dual
-  | oplus a b => Proposition.with a.dual b.dual
-  | Proposition.with a b => oplus a.dual b.dual
+  | oplus a b => Proposition.withh a.dual b.dual
+  | Proposition.withh a b => oplus a.dual b.dual
   | bang a => quest a.dual
   | quest a => bang a.dual
 
@@ -120,6 +130,7 @@ theorem Proposition.dual.involution (a : @Proposition Atom) : a.dual.dual = a :=
 
 /-- Linear implication. -/
 def Proposition.linImpl (a b : @Proposition Atom) : @Proposition Atom := a.dual.parr b
+local infix:40 (priority := high) " ⊸ " => linImpl
 
 /-- A sequent in CLL is a list of propositions. -/
 abbrev Sequent := List (@Proposition Atom)
@@ -140,12 +151,89 @@ inductive Proof : @Sequent Atom → Prop where
 | tensor : Proof (a :: Γ) → Proof (b :: Δ) → Proof ((tensor a b) :: (Γ ++ Δ))
 | oplus₁ : Proof (a :: Γ) → Proof ((oplus a b) :: Γ)
 | oplus₂ : Proof (b :: Γ) → Proof ((oplus a b) :: Γ)
-| with : Proof (a :: Γ) → Proof (b :: Γ) → Proof ((a.with b) :: Γ)
+| with : Proof (a :: Γ) → Proof (b :: Γ) → Proof ((a.withh b) :: Γ)
 | top : Proof (top :: Γ)
 | quest : Proof (a :: Γ) → Proof (quest a :: Γ)
 | weaken : Proof Γ → Proof (quest a :: Γ)
 | contract : Proof (quest a :: quest a :: Γ) → Proof (quest a :: Γ)
 | bang {Γ : @Sequent Atom} {a} : Γ.allQuest → Proof (a :: Γ) → Proof (bang a :: Γ)
+
+local notation:max (priority := high) "⊢ " x:max => Proof x
+
+variable {a : @Proposition Atom}
+
+example : ⊢ [a ⊸ a] := by
+  apply Proof.parr
+  apply Proof.exchange (List.Perm.swap a.dual a [])
+  exact Proof.ax
+
+-- a⊗0≡0 
+example : ⊢ [(a ⨂ zero).dual, zero] := by
+  apply Proof.parr
+  apply Proof.exchange (List.Perm.swap a.dual ⊤ [zero])
+  exact Proof.top
+
+example : ⊢ [zero.dual, a ⨂ zero] := by
+  exact Proof.top
+
+-- a⅋⊤≡⊤
+example : ⊢ [a ⅋ ⊤.dual, ⊤] := by
+  apply Proof.exchange (List.Perm.swap (a ⅋ ⊤.dual) ⊤ [])
+  exact Proof.top
+
+example : ⊢ [⊤.dual, a ⅋ ⊤] := by
+  apply Proof.exchange (List.Perm.swap ⊤.dual (a ⅋ ⊤) [])
+  apply Proof.parr
+  apply Proof.exchange (List.Perm.swap a ⊤ [⊤.dual])
+  exact Proof.top
+
+theorem perm_example1 : List.Perm [A, B, C] [C, A, B] := by
+  -- [A,B,C] - [B,A,C]
+  have step1 := List.Perm.swap B A [C]
+  -- [B,A,C] - [B,C,A]
+  have step2 := List.Perm.cons B (List.Perm.swap C A [])
+  -- [B,C,A] - [C,B,A]
+  have step3 := List.Perm.swap C B [A]
+  -- [C,B,A] - [C,A,B]
+  have step4 := List.Perm.cons C (List.Perm.swap A B [])
+
+  exact List.Perm.trans step1 (List.Perm.trans step2 (List.Perm.trans step3 step4))
+
+
+def Proposition.equiv (a b : @Proposition Atom) : Prop := Proof [a.dual, b] ∧ Proof [b.dual, a]
+-- !⊤≡1
+theorem exp_top_eq_one : @Proposition.equiv Atom (!⊤) one := by
+  constructor
+  · apply Proof.weaken
+    exact Proof.one
+  · apply Proof.bot
+    apply Proof.bang
+    · intro _ _; contradiction
+    exact Proof.top
+-- ?0≡⊥.
+theorem exp_zero_eq_bot : @Proposition.equiv Atom (?zero) ⊥ := by
+  constructor
+  · apply Proof.exchange (List.Perm.swap (!⊤) ⊥ [])
+    apply Proof.bot
+    apply Proof.bang
+    · intro _ _; contradiction
+    exact Proof.top
+  · apply Proof.exchange (List.Perm.swap one ?zero [])
+    apply Proof.weaken
+    exact Proof.one
+
+--- A⊗(B⊕C)≡(A⊗B)⊕(A⊗C)
+example (A B C : @Proposition Atom) : ⊢ [(A ⨂ (B ⊕ C)).dual, (A ⨂ B) ⊕ (A ⨂ C)] := by
+  apply Proof.parr
+  apply Proof.exchange (List.Perm.swap A.dual (B ⊕ C).dual [A ⨂ B ⊕ A ⨂ C])
+  apply Proof.with
+  · apply Proof.exchange perm_example1
+    apply Proof.exchange (List.Perm.swap A.dual ((A ⨂ B) ⊕ (A ⨂ C)) [B.dual])
+    apply Proof.oplus₁
+    apply Proof.exchange perm_example1
+    sorry
+  · sorry
+
 
 end CLL
 
