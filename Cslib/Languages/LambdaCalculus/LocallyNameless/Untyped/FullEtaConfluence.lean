@@ -51,18 +51,20 @@ lemma stronglyConfluent_eta : StronglyConfluent (@FullEta Var) := by
   case appL Z P P' _ _ ih =>
     cases h₂
     case base => contradiction
-    case appL _ _ _ _ P'' _ h =>
+    case appL _ _ P'' h _ =>
       let P''' := (ih h).choose
-      use (disch := grind) app Z P'''
-    case appR _ _ _ _ Z' _ _ => use (disch := grind) app Z' P'
-  case appR _ _ Z P _ _ _ ih =>
+      use (disch := grind) app P''' Z
+    case appR _ _ Z' _ _ =>
+      use (disch := grind) app P' Z'
+  case appR Z P P' _ _ ih =>
     cases h₂
     case base => contradiction
-    case appR _ _ P' _ _ P'' h _ =>
+    case appR _ _ P'' _ h =>
       let i := ih h
       let P''' := i.choose
-      use (disch := grind) app P''' Z
-    case appL _ _ P' _ _ Z' _ _ => use (disch := grind) app P' Z'
+      use (disch := grind) app Z P'''
+    case appL _ _ Z' _ _ =>
+      use (disch := grind) app Z' P'
   case abs _ _ p p' _ h ih =>
     cases h₂
     case base st =>

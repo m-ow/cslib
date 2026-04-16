@@ -57,7 +57,7 @@ theorem redex_app_r_cong (redex : M ↠ηᶠ M') (lc_N : LC N) : app N M ↠η�
 lemma invert_step_app_fvar (step : (app M (fvar x)) ⭢ηᶠ N) :
     ∃ M', N = app M' (fvar x) ∧ M ⭢ηᶠ M' := by
   cases step with
-  | appR _ step_M => exact ⟨_, rfl, step_M⟩
+  | appL _ step_M => exact ⟨_, rfl, step_M⟩
   | _ => grind [cases Xi]
 
 variable [HasFresh Var] [DecidableEq Var]

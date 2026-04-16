@@ -46,10 +46,10 @@ lemma stronglyCommute_eta_beta : StronglyCommute (@FullEta Var) FullBeta := by
     case beta M N _ _ =>
       cases h₁
       case base h => cases h
-      case appL v _ _ =>
+      case appR _ _ v _ _ =>
         use M ^ v
         grind [step_open_cong_r]
-      case appR u st_eta_absM _ =>
+      case appL _ _ u st_eta_absM _ =>
         have := step_lc_r st_eta_absM
         cases st_eta_absM
         case base h => use (disch := grind) app u N
@@ -57,20 +57,22 @@ lemma stronglyCommute_eta_beta : StronglyCommute (@FullEta Var) FullBeta := by
           have ⟨_, hz⟩ := fresh_exists (xs ∪ N.fv ∪ M.fv ∪ M_eta.fv)
           use M_eta ^ N
           grind [step_subst_cong_l]
-  case appL Z _ N _ _ ih =>
+  case appL Z M M' _ _ ih =>
     cases h₁
     case base h => cases h
-    case appL _ _ st =>
+    case appL _ _ M_eta st _ =>
+      use app (ih st).choose Z
+      grind [FullEta.redex_app_l_cong]
+    case appR _ _ z_red _ _ =>
+      use (disch := grind) app M' z_red
+  case appR Z N N' _ _ ih =>
+    cases h₁
+    case base h => cases h
+    case appR _ _ N_eta _ st =>
       use app Z (ih st).choose
       grind [FullEta.redex_app_r_cong]
-    case appR z_red _ _ => use (disch := grind) app z_red N
-  case appR M _ Z _ _ ih =>
-    cases h₁
-    case base h => cases h
-    case appL z_red _ _ => use (disch := grind) app Z z_red
-    case appR _ st _ =>
-      use app (ih st).choose M
-      grind [FullEta.redex_app_l_cong]
+    case appL _ _ z_red _ _ =>
+      use (disch := grind) app z_red N'
   case abs M N xs st_body_beta ih =>
     cases h₁
     case base h_eta =>

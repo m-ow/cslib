@@ -25,11 +25,11 @@ inductive Xi (R : Term Var → Term Var → Prop) : Term Var → Term Var → Pr
 /-- The base relation. -/
 | base : R M N → Xi R M N
 /-- Left congruence rule for application. -/
-| appL: LC Z → Xi R M N → Xi R (app Z M) (app Z N)
+| appL : LC Z → Xi R M N → Xi R (app M Z) (app N Z)
 /-- Right congruence rule for application. -/
-| appR : LC Z → Xi R M N → Xi R (app M Z) (app N Z)
+| appR: LC Z → Xi R M N → Xi R (app Z M) (app Z N)
 /-- The ξ (xi) rule for lambda terms. -/
-| abs (xs : Finset Var) : (∀ x ∉ xs, Xi R (M ^ fvar x) (N ^ fvar x)) → Xi R (abs M) (abs N)
+| abs (L : Finset Var) : (∀ x ∉ L, Xi R (M ^ fvar x) (N ^ fvar x)) → Xi R (abs M) (abs N)
 
 attribute [scoped grind .] Xi.appL Xi.appR Xi.base
 

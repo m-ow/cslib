@@ -69,7 +69,7 @@ lemma invert_step_app_fvar (step : app M (fvar x) ⭢βᶠ N) :
     (∃ M', N = app M' (fvar x) ∧ M ⭢βᶠ M') ∨ (∃ M1, M = abs M1 ∧ N = M1 ^ fvar x) := by
   cases step
   case base h => cases h with | beta => exact .inr ⟨_, rfl, rfl⟩
-  case appR step_M _ => exact .inl ⟨_, rfl, step_M⟩
+  case appL step_M _ => exact .inl ⟨_, rfl, step_M⟩
   all_goals grind [cases Xi]
 
 variable [HasFresh Var] [DecidableEq Var]
