@@ -34,41 +34,50 @@ variable [HasFresh Var] [DecidableEq Var]
 
 open FullEta in
 lemma stronglyConfluent_eta : StronglyConfluent (@FullEta Var) := by
-  intro _ y z h₁ h₂
-  suffices ∃ w, ReflGen FullEta y w ∧ ReflGen FullEta z w by grind
-  induction h₁ generalizing z
-  case base h1_b =>
-    cases h1_b
-    case eta M _ =>
+  intro M M₁ M₂ h₁ h₂
+  suffices ∃ M₃, ReflGen FullEta M₁ M₃ ∧ ReflGen FullEta M₂ M₃ by grind
+  induction h₁ generalizing M₂
+  case base _ _ p P st =>
+    cases st
+    case eta =>
       cases h₂
-      case base => use (disch := grind) M
-      case abs _ _ st_body =>
+      case base =>
+        use (disch := grind) P
+      case abs _ _ _ _ _ h =>
         have ⟨w, _⟩ := fresh_exists <| free_union [fv] Var
-        have ⟨M', _, _⟩ := invert_step_app_fvar <| st_body w <| by grind
-        use M'
+        have ⟨P', _, _⟩ := invert_step_app_fvar <| h w <| by grind
+        use P'
         grind [→ Eta.eta, step_not_fv, open_eq_app]
-  case appL Z _ N _ _ ih =>
+  case appL Z P P' _ _ ih =>
     cases h₂
-    case base h => cases h
-    case appL _ _ st => use (disch := grind) app Z (ih st).choose
-    case appR z_red _ _ => use (disch := grind) app z_red N
-  case appR M _ Z _ _ ih =>
+    case base => contradiction
+    case appL _ _ _ _ P'' _ h =>
+      let P''' := (ih h).choose
+      use (disch := grind) app Z P'''
+    case appR _ _ _ _ Z' _ _ => use (disch := grind) app Z' P'
+  case appR _ _ Z P _ _ _ ih =>
     cases h₂
-    case base h => cases h
-    case appR _ st _ => use (disch := grind) app (ih st).choose M
-    case appL z_red _ _ => use (disch := grind) app Z z_red
-  case abs _ _ _ st_M_N ih =>
+    case base => contradiction
+    case appR _ _ P' _ _ P'' h _ =>
+      let i := ih h
+      let P''' := i.choose
+      use (disch := grind) app P''' Z
+    case appL _ _ P' _ _ Z' _ _ => use (disch := grind) app P' Z'
+  case abs _ _ p p' _ h ih =>
     cases h₂
-    case base h =>
-      cases h with | eta lc_M =>
+    case base st =>
+      cases st
       have ⟨w, _⟩ := fresh_exists <| free_union [fv] Var
-      have ⟨M', _, _⟩ := invert_step_app_fvar <| st_M_N w (by grind)
-      use M'
+      have ⟨p', _, _⟩ := invert_step_app_fvar <| h w (by grind)
+      use p'
       grind [→ Eta.eta, step_not_fv, open_eq_app]
-    case abs N _ st_M_N =>
+    case abs _ _ xs p'' _ st =>
       have ⟨x, _⟩ := fresh_exists <| free_union [fv] Var
-      have ⟨w, _⟩ := ih x (by grind) (z := N ^ fvar x) (st_M_N x (by grind))
-      use abs (w ^* x)
+      have hP'' := st x (by aesop)
+      have i : ∀ {M₂ : Term Var}, (p ^ fvar x) ⭢ηᶠ M₂ → ∃ M₃,
+        ReflGen FullEta (p' ^ fvar x) M₃ ∧ ReflGen FullEta M₂ M₃ := ih x (by aesop)
+      let p''' := (i hP'').choose
+      use abs (p''' ^* x)
       grind [close_eta_steps]
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
