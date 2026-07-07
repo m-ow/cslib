@@ -138,6 +138,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBetaEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEta
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullEtaConfluence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LcAt
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.LeftmostReduction
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.MultiApp
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.MultiSubst
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Properties
