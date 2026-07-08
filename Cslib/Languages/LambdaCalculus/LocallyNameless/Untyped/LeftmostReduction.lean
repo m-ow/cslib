@@ -170,19 +170,17 @@ lemma BetaAt.rename (h : BetaAt M M' i) (x y : Var) :
     BetaAt (M[x := fvar y]) (M'[x := fvar y]) i := by
   induction h
   case outer lcm lcn =>
-    rw [subst_app, subst_abs, subst_open x (fvar y) _ _ (.fvar y)]
+    rw [subst_open x (fvar y) _ _ (.fvar y)]
     exact .outer (subst_lc lcm (.fvar y)) (subst_lc lcn (.fvar y))
   case appNoAbsL _ hna ih =>
-    simp only [subst_app]
     exact .appNoAbsL ih (mt isAbs_subst_fvar.mp hna)
   case appAbsL _ ha ih =>
-    simp only [subst_app]
     exact .appAbsL ih (isAbs_subst_fvar.mpr ha)
   case appNoAbsR M M' i N _ hna ih =>
-    simp only [subst_app, ← countRedexes_subst_fvar N x y]
+    rw [← countRedexes_subst_fvar N x y]
     exact .appNoAbsR ih (mt isAbs_subst_fvar.mp hna)
   case appAbsR M M' i N _ ha ih =>
-    simp only [subst_app, ← countRedexes_subst_fvar N x y]
+    rw [← countRedexes_subst_fvar N x y]
     exact .appAbsR ih (isAbs_subst_fvar.mpr ha)
   case abs M M' i xs _ ih =>
     simp only [subst_abs]
