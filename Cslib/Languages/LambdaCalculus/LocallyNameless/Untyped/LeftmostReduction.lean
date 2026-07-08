@@ -242,6 +242,30 @@ lemma Leftmost.steps_abs_cong (xs : Finset Var)
   have hlc := beta_lc lc (.fvar w)
   exact Leftmost.steps_abs_close hstep hlc
 
+/-- A standard reduction to a normal form is a leftmost reduction. -/
+theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : NormalForm N) : M ↠ℓ N := by
+  induction h
+  case fvar x => rfl
+  case app _ _ ihL ihM =>
+    obtain ⟨hna, hL', hM'⟩ := hn.app_inv
+    exact Leftmost.steps_app_cong (ihL hL') (ihM hM') hL' hna
+  case abs xs hbody ih =>
+    have lc := Standard.lc_l (Standard.abs xs hbody)
+    apply Leftmost.steps_abs_cong xs _ lc
+    intro x hx
+    exact ih x hx hn.abs_open
+  case rdx M N M' _ lcM lcN cbn stdP ih =>
+    have s1 : Term.app M N ↠ℓ Term.app (Term.abs M') N :=
+      of_cbn (CBN.steps_app_l_cong cbn lcN)
+    have s2 : Term.app (Term.abs M') N ⭢ℓ (M' ^ N) :=
+      BetaAt.outer (CBN.steps_lc_r lcM cbn) lcN
+    exact (s1.tail s2).trans (ih hn)
+
+/-- The leftmost reduction theorem: if a term β-reduces to a normal form, then leftmost
+    reduction reaches it. -/
+theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : NormalForm N) : M ↠ℓ N :=
+  of_standard (.standardization lc h) hn
+
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
 end Cslib
