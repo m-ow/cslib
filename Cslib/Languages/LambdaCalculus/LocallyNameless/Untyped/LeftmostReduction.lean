@@ -93,17 +93,60 @@ lemma BetaAt.isAbs_r (h : BetaAt M N i) (ha : IsAbs M) : IsAbs N := by
   cases h
   exact .abs _
 
+/-- Leftmost reduction preserves being an abstraction. -/
+lemma Leftmost.steps_isAbs_r (h : M ↠ℓ N) (ha : IsAbs M) : IsAbs N := by
+  induction h with
+  | refl => exact ha
+  | tail _ step ih => exact step.isAbs_r ih
+
+/-- Left congruence for leftmost reduction, provided the target is not an abstraction. -/
+lemma Leftmost.steps_app_l_cong (h : L ↠ℓ L') (hna : ¬IsAbs L') :
+    app L M ↠ℓ app L' M := by
+  induction h
+  case refl => rfl
+  case tail P _ _ step ih =>
+    have hnb : ¬IsAbs P := mt step.isAbs_r hna
+    exact (ih hnb).tail (step.appNoAbsL hnb)
+
 /-- Reducing the operand across a non-abstraction normal form keeps the position. -/
 lemma BetaAt.app_r_cong (h : BetaAt M M' i) (hL : NormalForm L) (hna : ¬IsAbs L) :
     BetaAt (app L M) (app L M') i := by
   have := h.appNoAbsR hna
   rwa [hL] at this
 
+/-- Right congruence for leftmost reduction, provided the operator is a non-abstraction
+    normal form. -/
+lemma Leftmost.steps_app_r_cong (h : M ↠ℓ M') (hL : NormalForm L) (hna : ¬IsAbs L) :
+    app L M ↠ℓ app L M' := by
+  induction h with
+  | refl => rfl
+  | tail _ step ih => exact ih.tail (step.app_r_cong hL hna)
+
+/-- Congruence for leftmost reduction on applications whose reduced operator is a
+    non-abstraction normal form. -/
+lemma Leftmost.steps_app_cong (hL : L ↠ℓ L') (hM : M ↠ℓ M')
+    (hnf : NormalForm L') (hna : ¬IsAbs L') : app L M ↠ℓ app L' M' :=
+  (steps_app_l_cong hL hna).trans (steps_app_r_cong hM hnf hna)
+
 /-- The source of a Call-by-Name step is never an abstraction. -/
 lemma cbn_not_isAbs (h : M ⭢ₙ N) : ¬IsAbs M := by
   intro ha
   cases ha
   trivial
+
+/-- A single Call-by-Name step contracts the leftmost redex. -/
+lemma Leftmost.of_cbn_step (h : M ⭢ₙ N) : M ⭢ℓ N := by
+  induction h with
+  | base hb =>
+    cases hb with
+    | beta lcm lcn => exact .outer lcm lcn
+  | app _ hMN ih => exact .appNoAbsL ih (cbn_not_isAbs hMN)
+
+/-- Call-by-Name reduction is contained in leftmost reduction. -/
+lemma Leftmost.of_cbn (h : M ↠ₙ N) : M ↠ℓ N := by
+  induction h with
+  | refl => rfl
+  | tail _ step ih => exact ih.tail (of_cbn_step step)
 
 variable [DecidableEq Var]
 
@@ -175,6 +218,29 @@ lemma BetaAt.abs_close {x : Var} (h : BetaAt M M' i) (lc : LC M) :
   have lc' := h.lc_r lc
   have hr : BetaAt (M[x := fvar z]) (M'[x := fvar z]) i := h.rename x z
   grind
+
+/-- Leftmost reduction preserves local closure. -/
+lemma Leftmost.steps_lc_r (h : M ↠ℓ M') (lc : LC M) : LC M' := by
+  induction h with
+  | refl => exact lc
+  | tail _ step ih => exact step.lc_r ih
+
+/-- Leftmost reduction is preserved by closing a variable and abstracting. -/
+lemma Leftmost.steps_abs_close {x : Var} (h : M ↠ℓ M') (lc : LC M) :
+    (M⟦0 ↜ x⟧.abs) ↠ℓ (M'⟦0 ↜ x⟧.abs) := by
+  induction h with
+  | refl => rfl
+  | tail hs step ih => exact ih.tail (step.abs_close (Leftmost.steps_lc_r hs lc))
+
+/-- Cofinite congruence rule for leftmost reduction under an abstraction. -/
+lemma Leftmost.steps_abs_cong (xs : Finset Var)
+    (cofin : ∀ x ∉ xs, (M ^ fvar x) ↠ℓ (M' ^ fvar x)) (lc : LC (abs M)) :
+    abs M ↠ℓ abs M' := by
+  have ⟨w, _⟩ := fresh_exists <| free_union [fv] Var
+  rw [open_close w M 0 (by aesop), open_close w M' 0 (by aesop)]
+  have hstep := cofin w (by aesop)
+  have hlc := beta_lc lc (.fvar w)
+  exact Leftmost.steps_abs_close hstep hlc
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
