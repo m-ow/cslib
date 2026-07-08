@@ -255,10 +255,8 @@ theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : NormalForm N) : M ↠ℓ N :
     intro x hx
     exact ih x hx hn.abs_open
   case rdx M N M' _ lcM lcN cbn stdP ih =>
-    have s1 : Term.app M N ↠ℓ Term.app (Term.abs M') N :=
-      of_cbn (CBN.steps_app_l_cong cbn lcN)
-    have s2 : Term.app (Term.abs M') N ⭢ℓ (M' ^ N) :=
-      BetaAt.outer (CBN.steps_lc_r lcM cbn) lcN
+    have s1 : M.app N ↠ℓ M'.abs.app N := of_cbn (CBN.steps_app_l_cong cbn lcN)
+    have s2 : M'.abs.app N ⭢ℓ M' ^ N := .outer (CBN.steps_lc_r lcM cbn) lcN
     exact (s1.tail s2).trans (ih hn)
 
 /-- The leftmost reduction theorem: if a term β-reduces to a normal form, then leftmost
