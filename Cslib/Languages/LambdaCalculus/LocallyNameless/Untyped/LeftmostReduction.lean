@@ -188,10 +188,10 @@ lemma BetaAt.rename (h : BetaAt M M' i) (x y : Var) :
     simp only [subst_abs]
     apply BetaAt.abs <| free_union [fv] Var
     intro z hz
-    have hzx : x ≠ z := by aesop
+    have hzx : x ≠ z := by grind
     rw [← subst_open_var z x (fvar y) M hzx (.fvar y),
       ← subst_open_var z x (fvar y) M' hzx (.fvar y)]
-    exact ih z (by aesop)
+    exact ih z (by grind)
 
 /-- Contracting a redex preserves local closure. -/
 lemma BetaAt.lc_r (h : BetaAt M M' i) (lc : LC M) : LC M' := by
@@ -208,7 +208,7 @@ lemma BetaAt.lc_r (h : BetaAt M M' i) (lc : LC M) : LC M' := by
     | abs ys _ hbody =>
       apply LC.abs (xs ∪ ys)
       intro z hz
-      exact ih z (by aesop) (hbody z (by aesop))
+      exact ih z (by grind) (hbody z (by grind))
 
 /-- Closing a variable and abstracting preserves the position of the contracted redex. -/
 lemma BetaAt.abs_close {x : Var} (h : BetaAt M M' i) (lc : LC M) :
@@ -237,8 +237,8 @@ lemma Leftmost.steps_abs_cong (xs : Finset Var)
     (cofin : ∀ x ∉ xs, (M ^ fvar x) ↠ℓ (M' ^ fvar x)) (lc : LC (abs M)) :
     abs M ↠ℓ abs M' := by
   have ⟨w, _⟩ := fresh_exists <| free_union [fv] Var
-  rw [open_close w M 0 (by aesop), open_close w M' 0 (by aesop)]
-  have hstep := cofin w (by aesop)
+  rw [open_close w M 0 (by grind), open_close w M' 0 (by grind)]
+  have hstep := cofin w (by grind)
   have hlc := beta_lc lc (.fvar w)
   exact Leftmost.steps_abs_close hstep hlc
 
