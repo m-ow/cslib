@@ -87,6 +87,18 @@ lemma NormalForm.abs_open {x : Var} (h : NormalForm (abs M)) : NormalForm (M ^ f
   rw [NormalForm, e]
   exact h
 
+/-- Contracting a redex of an abstraction yields an abstraction. -/
+lemma BetaAt.isAbs_r (h : BetaAt M N i) (ha : IsAbs M) : IsAbs N := by
+  cases ha
+  cases h
+  exact .abs _
+
+/-- Reducing the operand across a non-abstraction normal form keeps the position. -/
+lemma BetaAt.app_r_cong (h : BetaAt M M' i) (hL : NormalForm L) (hna : ¬IsAbs L) :
+    BetaAt (app L M) (app L M') i := by
+  have := h.appNoAbsR hna
+  rwa [hL] at this
+
 /-- The source of a Call-by-Name step is never an abstraction. -/
 lemma cbn_not_isAbs (h : M ⭢ₙ N) : ¬IsAbs M := by
   intro ha
@@ -107,6 +119,62 @@ lemma countRedexes_subst_fvar (M : Term Var) (x y : Var) :
 /-- Renaming a free variable preserves being an abstraction. -/
 lemma isAbs_subst_fvar {x y : Var} : IsAbs (M[x := fvar y]) ↔ IsAbs M := by
   cases M <;> grind [IsAbs]
+
+variable [HasFresh Var]
+
+/-- Renaming a free variable preserves the position of the contracted redex. -/
+lemma BetaAt.rename (h : BetaAt M M' i) (x y : Var) :
+    BetaAt (M[x := fvar y]) (M'[x := fvar y]) i := by
+  induction h
+  case outer lcm lcn =>
+    rw [subst_app, subst_abs, subst_open x (fvar y) _ _ (.fvar y)]
+    exact .outer (subst_lc lcm (.fvar y)) (subst_lc lcn (.fvar y))
+  case appNoAbsL _ hna ih =>
+    simp only [subst_app]
+    exact .appNoAbsL ih (mt isAbs_subst_fvar.mp hna)
+  case appAbsL _ ha ih =>
+    simp only [subst_app]
+    exact .appAbsL ih (isAbs_subst_fvar.mpr ha)
+  case appNoAbsR M M' i N _ hna ih =>
+    simp only [subst_app, ← countRedexes_subst_fvar N x y]
+    exact .appNoAbsR ih (mt isAbs_subst_fvar.mp hna)
+  case appAbsR M M' i N _ ha ih =>
+    simp only [subst_app, ← countRedexes_subst_fvar N x y]
+    exact .appAbsR ih (isAbs_subst_fvar.mpr ha)
+  case abs M M' i xs _ ih =>
+    simp only [subst_abs]
+    apply BetaAt.abs <| free_union [fv] Var
+    intro z hz
+    have hzx : x ≠ z := by aesop
+    rw [← subst_open_var z x (fvar y) M hzx (.fvar y),
+      ← subst_open_var z x (fvar y) M' hzx (.fvar y)]
+    exact ih z (by aesop)
+
+/-- Contracting a redex preserves local closure. -/
+lemma BetaAt.lc_r (h : BetaAt M M' i) (lc : LC M) : LC M' := by
+  induction h with
+  | outer lcm lcn => exact beta_lc lcm lcn
+  | appNoAbsL _ _ ih | appAbsL _ _ ih =>
+    cases lc with
+    | app lcL lcR => exact .app (ih lcL) lcR
+  | appNoAbsR _ _ ih | appAbsR _ _ ih =>
+    cases lc with
+    | app lcL lcR => exact .app lcL (ih lcR)
+  | abs xs _ ih =>
+    cases lc with
+    | abs ys _ hbody =>
+      apply LC.abs (xs ∪ ys)
+      intro z hz
+      exact ih z (by aesop) (hbody z (by aesop))
+
+/-- Closing a variable and abstracting preserves the position of the contracted redex. -/
+lemma BetaAt.abs_close {x : Var} (h : BetaAt M M' i) (lc : LC M) :
+    BetaAt (M⟦0 ↜ x⟧.abs) (M'⟦0 ↜ x⟧.abs) i := by
+  apply BetaAt.abs ∅
+  intro z _
+  have lc' := h.lc_r lc
+  have hr : BetaAt (M[x := fvar z]) (M'[x := fvar z]) i := h.rename x z
+  grind
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
 
