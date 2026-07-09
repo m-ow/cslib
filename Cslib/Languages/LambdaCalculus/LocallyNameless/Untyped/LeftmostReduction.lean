@@ -37,7 +37,7 @@ def countRedexes : Term Var → Nat
 | app m n       => countRedexes m + countRedexes n
 
 /-- A term is in normal form when it contains no β-redexes. -/
-def NormalForm (m : Term Var) : Prop := countRedexes m = 0
+def BetaNormal (m : Term Var) : Prop := countRedexes m = 0
 
 /-- `IsAbs m` holds when `m` is an abstraction. -/
 inductive IsAbs : Term Var → Prop
@@ -77,14 +77,14 @@ lemma countRedexes_openRec_fvar (M : Term Var) (k : Nat) (x : Var) :
 
 /-- In a normal-form application, both sides are normal and the operator is not an
     abstraction. -/
-lemma NormalForm.app_inv (h : NormalForm (app L M)) :
-    ¬IsAbs L ∧ NormalForm L ∧ NormalForm M := by
-  cases L <;> grind [NormalForm, countRedexes, IsAbs]
+lemma BetaNormal.app_inv (h : BetaNormal (app L M)) :
+    ¬IsAbs L ∧ BetaNormal L ∧ BetaNormal M := by
+  cases L <;> grind [BetaNormal, countRedexes, IsAbs]
 
 /-- The body of a normal-form abstraction opens to a normal form. -/
-lemma NormalForm.abs_open {x : Var} (h : NormalForm (abs M)) : NormalForm (M ^ fvar x) := by
+lemma BetaNormal.abs_open {x : Var} (h : BetaNormal (abs M)) : BetaNormal (M ^ fvar x) := by
   have e : countRedexes (M ^ fvar x) = countRedexes M := countRedexes_openRec_fvar M 0 x
-  rw [NormalForm, e]
+  rw [BetaNormal, e]
   exact h
 
 /-- Contracting a redex of an abstraction yields an abstraction. -/
@@ -109,14 +109,14 @@ lemma Leftmost.steps_app_l_cong (h : L ↠ℓ L') (hna : ¬IsAbs L') :
     exact (ih hnb).tail (step.appNoAbsL hnb)
 
 /-- Reducing the operand across a non-abstraction normal form keeps the position. -/
-lemma BetaAt.app_r_cong (h : BetaAt M M' i) (hL : NormalForm L) (hna : ¬IsAbs L) :
+lemma BetaAt.app_r_cong (h : BetaAt M M' i) (hL : BetaNormal L) (hna : ¬IsAbs L) :
     BetaAt (app L M) (app L M') i := by
   have := h.appNoAbsR hna
   rwa [hL] at this
 
 /-- Right congruence for leftmost reduction, provided the operator is a non-abstraction
     normal form. -/
-lemma Leftmost.steps_app_r_cong (h : M ↠ℓ M') (hL : NormalForm L) (hna : ¬IsAbs L) :
+lemma Leftmost.steps_app_r_cong (h : M ↠ℓ M') (hL : BetaNormal L) (hna : ¬IsAbs L) :
     app L M ↠ℓ app L M' := by
   induction h with
   | refl => rfl
@@ -125,7 +125,7 @@ lemma Leftmost.steps_app_r_cong (h : M ↠ℓ M') (hL : NormalForm L) (hna : ¬I
 /-- Congruence for leftmost reduction on applications whose reduced operator is a
     non-abstraction normal form. -/
 lemma Leftmost.steps_app_cong (hL : L ↠ℓ L') (hM : M ↠ℓ M')
-    (hnf : NormalForm L') (hna : ¬IsAbs L') : app L M ↠ℓ app L' M' :=
+    (hnf : BetaNormal L') (hna : ¬IsAbs L') : app L M ↠ℓ app L' M' :=
   (steps_app_l_cong hL hna).trans (steps_app_r_cong hM hnf hna)
 
 /-- The source of a Call-by-Name step is never an abstraction. -/
@@ -137,10 +137,10 @@ lemma cbn_not_isAbs (h : M ⭢ₙ N) : ¬IsAbs M := by
 /-- A single Call-by-Name step contracts the leftmost redex. -/
 lemma Leftmost.of_cbn_step (h : M ⭢ₙ N) : M ⭢ℓ N := by
   induction h with
-  | base hb =>
-    cases hb with
-    | beta lcm lcn => exact .outer lcm lcn
-  | app _ hMN ih => exact .appNoAbsL ih (cbn_not_isAbs hMN)
+  | base h_beta =>
+    cases h_beta with
+    | beta lc_M lc_N => exact .outer lc_M lc_N
+  | app _ step_M ih => exact .appNoAbsL ih (cbn_not_isAbs step_M)
 
 /-- Call-by-Name reduction is contained in leftmost reduction. -/
 lemma Leftmost.of_cbn (h : M ↠ₙ N) : M ↠ℓ N := by
@@ -169,9 +169,9 @@ variable [HasFresh Var]
 lemma BetaAt.rename (h : BetaAt M M' i) (x y : Var) :
     BetaAt (M[x := fvar y]) (M'[x := fvar y]) i := by
   induction h
-  case outer lcm lcn =>
+  case outer lc_M lc_N =>
     rw [subst_open x (fvar y) _ _ (.fvar y)]
-    exact .outer (subst_lc lcm (.fvar y)) (subst_lc lcn (.fvar y))
+    exact .outer (subst_lc lc_M (.fvar y)) (subst_lc lc_N (.fvar y))
   case appNoAbsL _ hna ih =>
     exact .appNoAbsL ih (mt isAbs_subst_fvar.mp hna)
   case appAbsL _ ha ih =>
@@ -182,31 +182,26 @@ lemma BetaAt.rename (h : BetaAt M M' i) (x y : Var) :
   case appAbsR M M' i N _ ha ih =>
     rw [← countRedexes_subst_fvar N x y]
     exact .appAbsR ih (isAbs_subst_fvar.mpr ha)
-  case abs M M' i xs _ ih =>
-    simp only [subst_abs]
+  case abs =>
     apply BetaAt.abs <| free_union [fv] Var
-    intro z hz
-    have hzx : x ≠ z := by grind
-    rw [← subst_open_var z x (fvar y) M hzx (.fvar y),
-      ← subst_open_var z x (fvar y) M' hzx (.fvar y)]
-    exact ih z (by grind)
+    grind
 
 /-- Contracting a redex preserves local closure. -/
 lemma BetaAt.lc_r (h : BetaAt M M' i) (lc : LC M) : LC M' := by
   induction h with
-  | outer lcm lcn => exact beta_lc lcm lcn
+  | outer lc_M lc_N => exact beta_lc lc_M lc_N
   | appNoAbsL _ _ ih | appAbsL _ _ ih =>
     cases lc with
-    | app lcL lcR => exact .app (ih lcL) lcR
+    | app lc_L lc_R => exact .app (ih lc_L) lc_R
   | appNoAbsR _ _ ih | appAbsR _ _ ih =>
     cases lc with
-    | app lcL lcR => exact .app lcL (ih lcR)
+    | app lc_L lc_R => exact .app lc_L (ih lc_R)
   | abs xs _ ih =>
     cases lc with
-    | abs ys _ hbody =>
+    | abs ys _ h_body =>
       apply LC.abs (xs ∪ ys)
       intro z hz
-      exact ih z (by grind) (hbody z (by grind))
+      exact ih z (by grind) (h_body z (by grind))
 
 /-- Closing a variable and abstracting preserves the position of the contracted redex. -/
 lemma BetaAt.abs_close {x : Var} (h : BetaAt M M' i) (lc : LC M) :
@@ -228,7 +223,7 @@ lemma Leftmost.steps_abs_close {x : Var} (h : M ↠ℓ M') (lc : LC M) :
     (M⟦0 ↜ x⟧.abs) ↠ℓ (M'⟦0 ↜ x⟧.abs) := by
   induction h with
   | refl => rfl
-  | tail hs step ih => exact ih.tail (step.abs_close (Leftmost.steps_lc_r hs lc))
+  | tail hs step ih => exact ih.tail (step.abs_close (steps_lc_r hs lc))
 
 /-- Cofinite congruence rule for leftmost reduction under an abstraction. -/
 lemma Leftmost.steps_abs_cong (xs : Finset Var)
@@ -238,28 +233,28 @@ lemma Leftmost.steps_abs_cong (xs : Finset Var)
   rw [open_close w M 0 (by grind), open_close w M' 0 (by grind)]
   have hstep := cofin w (by grind)
   have hlc := beta_lc lc (.fvar w)
-  exact Leftmost.steps_abs_close hstep hlc
+  exact steps_abs_close hstep hlc
 
 /-- A standard reduction to a normal form is a leftmost reduction. -/
-theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : NormalForm N) : M ↠ℓ N := by
+theorem Leftmost.of_standard (h : M ⭢ₛ N) (hn : BetaNormal N) : M ↠ℓ N := by
   induction h
   case fvar x => rfl
   case app _ _ ihL ihM =>
-    obtain ⟨hna, hL', hM'⟩ := hn.app_inv
-    exact Leftmost.steps_app_cong (ihL hL') (ihM hM') hL' hna
-  case abs xs hbody ih =>
-    have lc := Standard.lc_l (Standard.abs xs hbody)
-    apply Leftmost.steps_abs_cong xs _ lc
+    have ⟨hna, hL', hM'⟩ := hn.app_inv
+    exact steps_app_cong (ihL hL') (ihM hM') hL' hna
+  case abs xs h_body ih =>
+    have lc := (Standard.abs xs h_body).lc_l
+    apply steps_abs_cong xs _ lc
     intro x hx
     exact ih x hx hn.abs_open
-  case rdx M N M' _ lcM lcN cbn stdP ih =>
-    have s1 : M.app N ↠ℓ M'.abs.app N := of_cbn (CBN.steps_app_l_cong cbn lcN)
-    have s2 : M'.abs.app N ⭢ℓ M' ^ N := .outer (CBN.steps_lc_r lcM cbn) lcN
+  case rdx M N M' _ lc_M lc_N cbn std_P ih =>
+    have s1 : M.app N ↠ℓ M'.abs.app N := of_cbn (CBN.steps_app_l_cong cbn lc_N)
+    have s2 : M'.abs.app N ⭢ℓ M' ^ N := .outer (CBN.steps_lc_r lc_M cbn) lc_N
     exact (s1.tail s2).trans (ih hn)
 
 /-- The leftmost reduction theorem: if a term β-reduces to a normal form, then leftmost
     reduction reaches it. -/
-theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : NormalForm N) : M ↠ℓ N :=
+theorem Leftmost.normalization (lc : LC M) (h : M ↠βᶠ N) (hn : BetaNormal N) : M ↠ℓ N :=
   of_standard (.standardization lc h) hn
 
 end LambdaCalculus.LocallyNameless.Untyped.Term
