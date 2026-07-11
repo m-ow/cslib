@@ -28,52 +28,14 @@ variable {Var : Type u}
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
-/-- The number of β-redexes occurring in a term. -/
-def countRedexes : Term Var → Nat
-| fvar _        => 0
-| bvar _        => 0
-| abs m         => countRedexes m
-| app (abs m) n => (countRedexes (abs m) + countRedexes n) + 1
-| app m n       => countRedexes m + countRedexes n
-
 /-- A term is in normal form when it contains no β-redexes. -/
 def BetaNormal (m : Term Var) : Prop := countRedexes m = 0
-
-/-- `IsAbs m` holds when `m` is an abstraction. -/
-inductive IsAbs : Term Var → Prop
-| abs (m : Term Var) : IsAbs (abs m)
-
-/-- `BetaAt M N i` reduces the redex at position `i` of `M` to obtain `N`;
-    positions are counted from left to right. -/
-inductive BetaAt : Term Var → Term Var → Nat → Prop
-/-- The outermost redex sits at position `0`. -/
-| outer : LC (abs M) → LC N → BetaAt (app (abs M) N) (M ^ N) 0
-/-- Reducing a non-abstraction operator keeps the position. -/
-| appNoAbsL : BetaAt M M' i → ¬IsAbs M → BetaAt (app M N) (app M' N) i
-/-- Reducing an abstraction operator advances the position by one. -/
-| appAbsL : BetaAt M M' i → IsAbs M → BetaAt (app M N) (app M' N) (i + 1)
-/-- Reducing the operand adds the redex count of a non-abstraction operator. -/
-| appNoAbsR : BetaAt M M' i → ¬IsAbs N → BetaAt (app N M) (app N M') (i + countRedexes N)
-/-- Reducing the operand adds the redex count of an abstraction operator, plus one. -/
-| appAbsR : BetaAt M M' i → IsAbs N → BetaAt (app N M) (app N M') (i + countRedexes N + 1)
-/-- Reducing under a binder keeps the position. -/
-| abs (xs : Finset Var) :
-    (∀ x ∉ xs, BetaAt (M ^ fvar x) (M' ^ fvar x) i) → BetaAt (abs M) (abs M') i
 
 /-- Leftmost reduction: a β-reduction contracting the redex at position 0. -/
 @[reduction_sys "ℓ"]
 abbrev Leftmost (M N : Term Var) : Prop := BetaAt M N 0
 
 variable {L L' M M' N : Term Var} {i : Nat}
-
-/-- Opening with a free variable preserves the number of redexes. -/
-lemma countRedexes_openRec_fvar (M : Term Var) (k : Nat) (x : Var) :
-    countRedexes (M⟦k ↝ fvar x⟧) = countRedexes M := by
-  induction M generalizing k with
-  | bvar j => simp only [openRec_bvar]; split <;> rfl
-  | fvar => rfl
-  | abs M ih => grind [openRec_abs, countRedexes]
-  | app L R ihL ihR => cases L <;> grind [countRedexes, openRec_bvar, openRec_app, openRec_abs]
 
 /-- In a normal-form application, both sides are normal and the operator is not an
     abstraction. -/
@@ -86,12 +48,6 @@ lemma BetaNormal.abs_open {x : Var} (h : BetaNormal (abs M)) : BetaNormal (M ^ f
   have e : countRedexes (M ^ fvar x) = countRedexes M := countRedexes_openRec_fvar M 0 x
   rw [BetaNormal, e]
   exact h
-
-/-- Contracting a redex of an abstraction yields an abstraction. -/
-lemma BetaAt.isAbs_r (h : BetaAt M N i) (ha : IsAbs M) : IsAbs N := by
-  cases ha
-  cases h
-  exact .abs _
 
 /-- Leftmost reduction preserves being an abstraction. -/
 lemma Leftmost.steps_isAbs_r (h : M ↠ℓ N) (ha : IsAbs M) : IsAbs N := by
@@ -128,89 +84,13 @@ lemma Leftmost.steps_app_cong (hL : L ↠ℓ L') (hM : M ↠ℓ M')
     (hnf : BetaNormal L') (hna : ¬IsAbs L') : app L M ↠ℓ app L' M' :=
   (steps_app_l_cong hL hna).trans (steps_app_r_cong hM hnf hna)
 
-/-- The source of a Call-by-Name step is never an abstraction. -/
-lemma cbn_not_isAbs (h : M ⭢ₙ N) : ¬IsAbs M := by
-  intro ha
-  cases ha
-  trivial
-
-/-- A single Call-by-Name step contracts the leftmost redex. -/
-lemma Leftmost.of_cbn_step (h : M ⭢ₙ N) : M ⭢ℓ N := by
-  induction h with
-  | base h_beta =>
-    cases h_beta with
-    | beta lc_M lc_N => exact .outer lc_M lc_N
-  | app _ step_M ih => exact .appNoAbsL ih (cbn_not_isAbs step_M)
-
 /-- Call-by-Name reduction is contained in leftmost reduction. -/
 lemma Leftmost.of_cbn (h : M ↠ₙ N) : M ↠ℓ N := by
   induction h with
   | refl => rfl
-  | tail _ step ih => exact ih.tail (of_cbn_step step)
+  | tail _ step ih => exact ih.tail (BetaAt.of_cbn_step step)
 
-variable [DecidableEq Var]
-
-/-- Renaming a free variable preserves the number of redexes. -/
-lemma countRedexes_subst_fvar (M : Term Var) (x y : Var) :
-    countRedexes (M[x := fvar y]) = countRedexes M := by
-  induction M with
-  | fvar z => simp only [subst_fvar]; split <;> rfl
-  | bvar => rfl
-  | abs M ih => grind [countRedexes]
-  | app L R ihL ihR => cases L <;> grind [countRedexes]
-
-/-- Renaming a free variable preserves being an abstraction. -/
-lemma isAbs_subst_fvar {x y : Var} : IsAbs (M[x := fvar y]) ↔ IsAbs M := by
-  cases M <;> grind [IsAbs]
-
-variable [HasFresh Var]
-
-/-- Renaming a free variable preserves the position of the contracted redex. -/
-lemma BetaAt.rename (h : BetaAt M M' i) (x y : Var) :
-    BetaAt (M[x := fvar y]) (M'[x := fvar y]) i := by
-  induction h
-  case outer lc_M lc_N =>
-    rw [subst_open x (fvar y) _ _ (.fvar y)]
-    exact .outer (subst_lc lc_M (.fvar y)) (subst_lc lc_N (.fvar y))
-  case appNoAbsL _ hna ih =>
-    exact .appNoAbsL ih (mt isAbs_subst_fvar.mp hna)
-  case appAbsL _ ha ih =>
-    exact .appAbsL ih (isAbs_subst_fvar.mpr ha)
-  case appNoAbsR M M' i N _ hna ih =>
-    rw [← countRedexes_subst_fvar N x y]
-    exact .appNoAbsR ih (mt isAbs_subst_fvar.mp hna)
-  case appAbsR M M' i N _ ha ih =>
-    rw [← countRedexes_subst_fvar N x y]
-    exact .appAbsR ih (isAbs_subst_fvar.mpr ha)
-  case abs =>
-    apply BetaAt.abs <| free_union [fv] Var
-    grind
-
-/-- Contracting a redex preserves local closure. -/
-lemma BetaAt.lc_r (h : BetaAt M M' i) (lc : LC M) : LC M' := by
-  induction h with
-  | outer lc_M lc_N => exact beta_lc lc_M lc_N
-  | appNoAbsL _ _ ih | appAbsL _ _ ih =>
-    cases lc with
-    | app lc_L lc_R => exact .app (ih lc_L) lc_R
-  | appNoAbsR _ _ ih | appAbsR _ _ ih =>
-    cases lc with
-    | app lc_L lc_R => exact .app lc_L (ih lc_R)
-  | abs xs _ ih =>
-    cases lc with
-    | abs ys _ h_body =>
-      apply LC.abs (xs ∪ ys)
-      intro z hz
-      exact ih z (by grind) (h_body z (by grind))
-
-/-- Closing a variable and abstracting preserves the position of the contracted redex. -/
-lemma BetaAt.abs_close {x : Var} (h : BetaAt M M' i) (lc : LC M) :
-    BetaAt (M⟦0 ↜ x⟧.abs) (M'⟦0 ↜ x⟧.abs) i := by
-  apply BetaAt.abs ∅
-  intro z _
-  have lc' := h.lc_r lc
-  have hr : BetaAt (M[x := fvar z]) (M'[x := fvar z]) i := h.rename x z
-  grind
+variable [DecidableEq Var] [HasFresh Var]
 
 /-- Leftmost reduction preserves local closure. -/
 lemma Leftmost.steps_lc_r (h : M ↠ℓ M') (lc : LC M) : LC M' := by
