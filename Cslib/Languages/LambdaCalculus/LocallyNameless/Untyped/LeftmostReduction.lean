@@ -45,8 +45,7 @@ lemma BetaNormal.app_inv (h : BetaNormal (app L M)) :
 
 /-- The body of a normal-form abstraction opens to a normal form. -/
 lemma BetaNormal.abs_open {x : Var} (h : BetaNormal (abs M)) : BetaNormal (M ^ fvar x) := by
-  have e : countRedexes (M ^ fvar x) = countRedexes M := countRedexes_openRec_fvar M 0 x
-  rw [BetaNormal, e]
+  rw [BetaNormal, countRedexes_open_fvar]
   exact h
 
 /-- Leftmost reduction preserves being an abstraction. -/

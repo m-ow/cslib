@@ -139,6 +139,11 @@ lemma countRedexes_openRec_fvar (M : Term Var) (k : Nat) (x : Var) :
   | abs M ih => grind [openRec_abs, countRedexes]
   | app L R ihL ihR => cases L <;> grind [countRedexes, openRec_bvar, openRec_app, openRec_abs]
 
+/-- Opening the outermost binder with a free variable preserves the number of redexes. -/
+lemma countRedexes_open_fvar (M : Term Var) (x : Var) :
+    countRedexes (M ^ fvar x) = countRedexes M :=
+  countRedexes_openRec_fvar M 0 x
+
 /-- Contracting a redex of an abstraction yields an abstraction. -/
 lemma BetaAt.isAbs_r (h : BetaAt M N i) (ha : IsAbs M) : IsAbs N := by
   cases ha
@@ -238,7 +243,7 @@ lemma BetaAt.le_countRedexes (h : BetaAt M N i) : i ≤ countRedexes N := by
     grind [countRedexes]
   case abs xs _ _ =>
     have := fresh_exists xs
-    grind [countRedexes_openRec_fvar, countRedexes]
+    grind [countRedexes_open_fvar, countRedexes]
 
 /-- In a nonempty standard sequence the lower bound is at most the target's redex count. -/
 lemma StandardSeq.bound_le (h : StandardSeq n M N) : n ≤ countRedexes N ∨ M = N := by
