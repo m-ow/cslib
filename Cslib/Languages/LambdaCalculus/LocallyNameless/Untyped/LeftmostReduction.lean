@@ -41,7 +41,7 @@ variable {L L' M M' N : Term Var} {i : Nat}
     abstraction. -/
 lemma BetaNormal.app_inv (h : BetaNormal (app L M)) :
     ¬IsAbs L ∧ BetaNormal L ∧ BetaNormal M := by
-  cases L <;> grind [BetaNormal, countRedexes, IsAbs]
+  cases L <;> grind [BetaNormal, countRedexes]
 
 /-- The body of a normal-form abstraction opens to a normal form. -/
 lemma BetaNormal.abs_open {x : Var} (h : BetaNormal (abs M)) : BetaNormal (M ^ fvar x) := by

@@ -38,6 +38,7 @@ def countRedexes : Term Var → Nat
 | app m n       => countRedexes m + countRedexes n
 
 /-- `IsAbs m` holds when `m` is an abstraction. -/
+@[scoped grind]
 inductive IsAbs : Term Var → Prop
 | abs (m : Term Var) : IsAbs (abs m)
 
@@ -202,7 +203,7 @@ lemma countRedexes_subst_fvar [DecidableEq Var] (M : Term Var) (x y : Var) :
 
 /-- Renaming a free variable preserves being an abstraction. -/
 lemma isAbs_subst_fvar [DecidableEq Var] {x y : Var} : IsAbs (M[x := fvar y]) ↔ IsAbs M := by
-  cases M <;> grind [IsAbs]
+  cases M <;> grind
 
 /-- A `BetaAt` step is a full β-step. -/
 lemma BetaAt.to_step [DecidableEq Var] (h : BetaAt M N i) (lc : LC M) : M ⭢βᶠ N := by
