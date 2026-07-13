@@ -34,7 +34,7 @@ def countRedexes : Term Var → Nat
 | fvar _        => 0
 | bvar _        => 0
 | abs m         => countRedexes m
-| app (abs m) n => (countRedexes (abs m) + countRedexes n) + 1
+| app (abs m) n => countRedexes m + countRedexes n + 1
 | app m n       => countRedexes m + countRedexes n
 
 /-- `IsAbs m` holds when `m` is an abstraction. -/
