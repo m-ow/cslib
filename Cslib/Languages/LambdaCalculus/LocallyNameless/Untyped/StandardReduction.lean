@@ -42,14 +42,11 @@ def countRedexes : Term Var → Nat
 inductive BetaAt : Nat → Term Var → Term Var → Prop
 /-- The outermost redex sits at position `0`. -/
 | outer : LC (abs M) → LC N → BetaAt 0 (app (abs M) N) (M ^ N)
-/-- Reducing a non-abstraction operator keeps the position. -/
-| appNoAbsL : BetaAt i M M' → ¬IsAbs M → BetaAt i (app M N) (app M' N)
-/-- Reducing an abstraction operator advances the position by one. -/
-| appAbsL : BetaAt i M M' → IsAbs M → BetaAt (i + 1) (app M N) (app M' N)
-/-- Reducing the operand adds the redex count of a non-abstraction operator. -/
-| appNoAbsR : BetaAt i M M' → ¬IsAbs N → BetaAt (i + countRedexes N) (app N M) (app N M')
-/-- Reducing the operand adds the redex count of an abstraction operator, plus one. -/
-| appAbsR : BetaAt i M M' → IsAbs N → BetaAt (i + countRedexes N + 1) (app N M) (app N M')
+/-- Reducing the operator advances the position by one when the operator is an abstraction. -/
+| appL : BetaAt i M M' → BetaAt (i + if IsAbs M then 1 else 0) (app M N) (app M' N)
+/-- Reducing the operand adds the operator's redex count, plus one when it is an abstraction. -/
+| appR : BetaAt i M M' →
+    BetaAt (i + countRedexes N + if IsAbs N then 1 else 0) (app N M) (app N M')
 /-- Reducing under a binder keeps the position. -/
 | abs (xs : Finset Var) :
     (∀ x ∉ xs, BetaAt i (M ^ fvar x) (M' ^ fvar x)) → BetaAt i (abs M) (abs M')
@@ -76,6 +73,26 @@ inductive Standard : Term Var → Term Var → Prop
 | rdx : LC m → LC n → m ↠ₙ (abs m') → Standard (m' ^ n) p → Standard (app m n) p
 
 variable {L L' M M' N N' P : Term Var} {i m n : Nat}
+
+/-- Reducing a non-abstraction operator keeps the position. -/
+lemma BetaAt.appNoAbsL (h : BetaAt i M M') (hna : ¬IsAbs M) :
+    BetaAt i (app M N) (app M' N) := by
+  simpa [if_neg hna] using h.appL
+
+/-- Reducing an abstraction operator advances the position by one. -/
+lemma BetaAt.appAbsL (h : BetaAt i M M') (ha : IsAbs M) :
+    BetaAt (i + 1) (app M N) (app M' N) := by
+  simpa [if_pos ha] using h.appL
+
+/-- Reducing the operand adds the redex count of a non-abstraction operator. -/
+lemma BetaAt.appNoAbsR (h : BetaAt i M M') (hna : ¬IsAbs N) :
+    BetaAt (i + countRedexes N) (app N M) (app N M') := by
+  simpa [if_neg hna] using h.appR (N := N)
+
+/-- Reducing the operand adds the redex count of an abstraction operator, plus one. -/
+lemma BetaAt.appAbsR (h : BetaAt i M M') (ha : IsAbs N) :
+    BetaAt (i + countRedexes N + 1) (app N M) (app N M') := by
+  simpa [if_pos ha] using h.appR (N := N)
 
 /-- The left side of a standard reduction is locally closed. -/
 lemma Standard.lc_l (step : M ⭢ₛ N) : LC M := by
@@ -219,10 +236,10 @@ lemma isAbs_subst_fvar [DecidableEq Var] {x y : Var} : IsAbs (M[x := fvar y]) �
 lemma BetaAt.to_step [DecidableEq Var] (h : BetaAt i M N) (lc : LC M) : M ⭢βᶠ N := by
   induction h with
   | outer lc_M lc_N => exact .base (.beta lc_M lc_N)
-  | appNoAbsL _ _ ih | appAbsL _ _ ih =>
+  | appL _ ih =>
     cases lc with
     | app lc_L lc_R => exact .appR lc_R (ih lc_L)
-  | appNoAbsR _ _ ih | appAbsR _ _ ih =>
+  | appR _ ih =>
     cases lc with
     | app lc_L lc_R => exact .appL lc_L (ih lc_R)
   | abs xs _ ih =>
@@ -238,11 +255,19 @@ variable [HasFresh Var]
 lemma BetaAt.le_countRedexes (h : BetaAt i M N) : i ≤ countRedexes N := by
   induction h with
   | outer => exact Nat.zero_le _
-  | appNoAbsL => exact le_trans (by omega) (countRedexes_app_le _ _)
-  | appAbsL step ha => rw [countRedexes_app_abs (step.isAbs_r ha)]; omega
-  | appNoAbsR => exact le_trans (by omega) (countRedexes_app_le _ _)
-  | appAbsR _ ha => rw [countRedexes_app_abs ha]; omega
-  | abs xs => have := fresh_exists xs; grind [countRedexes_open_fvar, countRedexes]
+  | appL step =>
+    split
+    · rw [countRedexes_app_abs (step.isAbs_r (by assumption))]
+      omega
+    · exact le_trans (by omega) (countRedexes_app_le _ _)
+  | appR =>
+    split
+    · rw [countRedexes_app_abs (by assumption)]
+      omega
+    · exact le_trans (by omega) (countRedexes_app_le _ _)
+  | abs xs =>
+    have := fresh_exists xs
+    grind [countRedexes_open_fvar, countRedexes]
 
 /-- In a nonempty standard sequence the lower bound is at most the target's redex count. -/
 lemma StandardSeq.bound_le (h : StandardSeq n M N) : n ≤ countRedexes N ∨ M = N := by
@@ -435,21 +460,20 @@ theorem Standard.iff_redex (lc_M : LC M) : M ⭢ₛ N ↔ M ↠βᶠ N :=
 /-- Renaming a free variable preserves the position of the contracted redex. -/
 lemma BetaAt.rename (h : BetaAt i M M') (x y : Var) :
     BetaAt i (M[x := fvar y]) (M'[x := fvar y]) := by
-  induction h
-  case outer lc_M lc_N =>
+  induction h with
+  | outer lc_M lc_N =>
     rw [subst_open x (fvar y) _ _ (.fvar y)]
     exact .outer (subst_lc lc_M (.fvar y)) (subst_lc lc_N (.fvar y))
-  case appNoAbsL _ hna ih =>
-    exact .appNoAbsL ih (mt isAbs_subst_fvar.mp hna)
-  case appAbsL _ ha ih =>
-    exact .appAbsL ih (isAbs_subst_fvar.mpr ha)
-  case appNoAbsR M M' i N _ hna ih =>
-    rw [← countRedexes_subst_fvar N x y]
-    exact .appNoAbsR ih (mt isAbs_subst_fvar.mp hna)
-  case appAbsR M M' i N _ ha ih =>
-    rw [← countRedexes_subst_fvar N x y]
-    exact .appAbsR ih (isAbs_subst_fvar.mpr ha)
-  case abs =>
+  | appL _ ih =>
+    split
+    · exact ih.appAbsL (isAbs_subst_fvar.mpr (by assumption))
+    · exact ih.appNoAbsL (mt isAbs_subst_fvar.mp (by assumption))
+  | appR _ ih =>
+    rw [← countRedexes_subst_fvar _ x y]
+    split
+    · exact ih.appAbsR (isAbs_subst_fvar.mpr (by assumption))
+    · exact ih.appNoAbsR (mt isAbs_subst_fvar.mp (by assumption))
+  | abs =>
     apply BetaAt.abs <| free_union [fv] Var
     grind
 
@@ -457,10 +481,10 @@ lemma BetaAt.rename (h : BetaAt i M M') (x y : Var) :
 lemma BetaAt.lc_r (h : BetaAt i M M') (lc : LC M) : LC M' := by
   induction h with
   | outer lc_M lc_N => exact beta_lc lc_M lc_N
-  | appNoAbsL _ _ ih | appAbsL _ _ ih =>
+  | appL _ ih =>
     cases lc with
     | app lc_L lc_R => exact .app (ih lc_L) lc_R
-  | appNoAbsR _ _ ih | appAbsR _ _ ih =>
+  | appR _ ih =>
     cases lc with
     | app lc_L lc_R => exact .app lc_L (ih lc_R)
   | abs xs _ ih =>
