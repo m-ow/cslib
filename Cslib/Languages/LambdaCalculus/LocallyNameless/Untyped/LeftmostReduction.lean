@@ -33,7 +33,7 @@ def BetaNormal (m : Term Var) : Prop := countRedexes m = 0
 
 /-- Leftmost reduction: a β-reduction contracting the redex at position 0. -/
 @[reduction_sys "ℓ"]
-abbrev Leftmost (M N : Term Var) : Prop := BetaAt M N 0
+abbrev Leftmost : Term Var → Term Var → Prop := BetaAt 0
 
 variable {L L' M M' N : Term Var} {i : Nat}
 
@@ -64,8 +64,8 @@ lemma Leftmost.steps_app_l_cong (h : L ↠ℓ L') (hna : ¬IsAbs L') :
     exact (ih hnb).tail (step.appNoAbsL hnb)
 
 /-- Reducing the operand across a non-abstraction normal form keeps the position. -/
-lemma BetaAt.app_r_cong (h : BetaAt M M' i) (hL : BetaNormal L) (hna : ¬IsAbs L) :
-    BetaAt (app L M) (app L M') i := by
+lemma BetaAt.app_r_cong (h : BetaAt i M M') (hL : BetaNormal L) (hna : ¬IsAbs L) :
+    BetaAt i (app L M) (app L M') := by
   have := h.appNoAbsR hna
   rwa [hL] at this
 
