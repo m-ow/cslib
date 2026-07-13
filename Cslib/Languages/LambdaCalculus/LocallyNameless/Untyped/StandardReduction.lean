@@ -37,11 +37,6 @@ def countRedexes : Term Var → Nat
 | app (abs m) n => countRedexes m + countRedexes n + 1
 | app m n       => countRedexes m + countRedexes n
 
-/-- `IsAbs m` holds when `m` is an abstraction. -/
-@[scoped grind]
-inductive IsAbs : Term Var → Prop
-| abs (m : Term Var) : IsAbs (abs m)
-
 /-- `BetaAt i M N` reduces the redex at position `i` of `M` to obtain `N`;
     positions are counted from left to right. -/
 inductive BetaAt : Nat → Term Var → Term Var → Prop
