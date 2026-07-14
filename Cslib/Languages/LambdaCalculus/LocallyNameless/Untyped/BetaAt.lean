@@ -31,6 +31,7 @@ variable {Var : Type u}
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
 /-- The number of β-redexes occurring in a term. -/
+@[grind]
 def countRedexes : Term Var → Nat
 | fvar _        => 0
 | bvar _        => 0
@@ -80,8 +81,8 @@ lemma countRedexes_openRec_fvar (M : Term Var) (k : Nat) (x : Var) :
   induction M generalizing k with
   | bvar j => simp only [openRec_bvar]; split <;> rfl
   | fvar => rfl
-  | abs M ih => grind [openRec_abs, countRedexes]
-  | app L R ihL ihR => cases L <;> grind [countRedexes, openRec_bvar, openRec_app, openRec_abs]
+  | abs M ih => grind [openRec_abs]
+  | app L R ihL ihR => cases L <;> grind [openRec_bvar, openRec_app, openRec_abs]
 
 /-- Opening the outermost binder with a free variable preserves the number of redexes. -/
 lemma countRedexes_open_fvar (M : Term Var) (x : Var) :
@@ -91,12 +92,13 @@ lemma countRedexes_open_fvar (M : Term Var) (x : Var) :
 /-- An application has at least as many redexes as its operator and operand combined. -/
 lemma countRedexes_app_le (M N : Term Var) :
     countRedexes M + countRedexes N ≤ countRedexes (app M N) := by
-  cases M <;> grind [countRedexes]
+  cases M <;> grind
 
 /-- An application with an abstraction operator has one more redex than its parts. -/
 lemma countRedexes_app_abs {M : Term Var} (ha : IsAbs M) (N : Term Var) :
     countRedexes (app M N) = countRedexes M + countRedexes N + 1 := by
-  cases ha; grind [countRedexes]
+  cases ha
+  grind
 
 /-- Contracting a redex of an abstraction yields an abstraction. -/
 lemma BetaAt.isAbs_r (h : BetaAt i M N) (ha : IsAbs M) : IsAbs N := by
@@ -124,8 +126,8 @@ lemma countRedexes_subst_fvar [DecidableEq Var] (M : Term Var) (x y : Var) :
   induction M with
   | fvar z => simp only [subst_fvar]; split <;> rfl
   | bvar => rfl
-  | abs M ih => grind [countRedexes]
-  | app L R ihL ihR => cases L <;> grind [countRedexes]
+  | abs M ih => grind
+  | app L R ihL ihR => cases L <;> grind
 
 /-- Renaming a free variable preserves being an abstraction. -/
 lemma isAbs_subst_fvar [DecidableEq Var] {x y : Var} : IsAbs (M[x := fvar y]) ↔ IsAbs M := by
@@ -166,7 +168,7 @@ lemma BetaAt.le_countRedexes (h : BetaAt i M N) : i ≤ countRedexes N := by
     · exact le_trans (by omega) (countRedexes_app_le _ _)
   | abs xs =>
     have := fresh_exists xs
-    grind [countRedexes_open_fvar, countRedexes]
+    grind [countRedexes_open_fvar]
 
 variable [DecidableEq Var]
 

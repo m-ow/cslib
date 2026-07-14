@@ -29,6 +29,7 @@ variable {Var : Type u}
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
 /-- A term is in normal form when it contains no β-redexes. -/
+@[grind]
 def BetaNormal (m : Term Var) : Prop := countRedexes m = 0
 
 /-- Leftmost reduction: a β-reduction contracting the redex at position 0. -/
@@ -41,7 +42,7 @@ variable {L L' M M' N : Term Var} {i : Nat}
     abstraction. -/
 lemma BetaNormal.app_inv (h : BetaNormal (app L M)) :
     ¬IsAbs L ∧ BetaNormal L ∧ BetaNormal M := by
-  cases L <;> grind [BetaNormal, countRedexes]
+  cases L <;> grind [countRedexes]
 
 /-- The body of a normal-form abstraction opens to a normal form. -/
 lemma BetaNormal.abs_open {x : Var} (h : BetaNormal (abs M)) : BetaNormal (M ^ fvar x) := by
