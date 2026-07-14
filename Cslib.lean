@@ -129,6 +129,7 @@ public import Cslib.Languages.LambdaCalculus.LocallyNameless.Stlc.Basic
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Stlc.Safety
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Stlc.StrongNorm
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Basic
+public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.BetaAt
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.CallByName
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.Congruence
 public import Cslib.Languages.LambdaCalculus.LocallyNameless.Untyped.FullBeta
