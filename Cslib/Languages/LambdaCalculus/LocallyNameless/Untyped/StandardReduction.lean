@@ -29,6 +29,8 @@ variable {Var : Type u}
 
 namespace LambdaCalculus.LocallyNameless.Untyped.Term
 
+/-! ## Main definitions -/
+
 /-- The number of β-redexes occurring in a term. -/
 def countRedexes : Term Var → Nat
 | fvar _        => 0
@@ -73,6 +75,8 @@ inductive Standard : Term Var → Term Var → Prop
 | rdx : LC m → LC n → m ↠ₙ (abs m') → Standard (m' ^ n) p → Standard (app m n) p
 
 variable {L L' M M' N N' P : Term Var} {a b i m n : Nat}
+
+/-! ## Basic properties -/
 
 /-- Reducing a non-abstraction operator keeps the position. -/
 lemma BetaAt.appNoAbsL (h : BetaAt i M M') (hna : ¬IsAbs M) :
@@ -142,6 +146,8 @@ lemma Standard.cbn_trans (h1 : M ↠ₙ P) (h2 : P ⭢ₛ N) : M ⭢ₛ N := by
 lemma Standard.of_cbn (step : M ↠ₙ N) (lc_N : LC N) : M ⭢ₛ N :=
   cbn_trans step (lc_refl N lc_N)
 
+/-! ## Redex positions -/
+
 /-- Opening with a free variable preserves the number of redexes. -/
 lemma countRedexes_openRec_fvar (M : Term Var) (k : Nat) (x : Var) :
     countRedexes (M⟦k ↝ fvar x⟧) = countRedexes M := by
@@ -185,6 +191,8 @@ lemma BetaAt.of_cbn_step (h : M ⭢ₙ N) : BetaAt 0 M N := by
     cases h_beta with
     | beta lc_M lc_N => exact .outer lc_M lc_N
   | app _ step_M ih => exact .appNoAbsL ih (cbn_not_isAbs step_M)
+
+/-! ## Standard sequences -/
 
 /-- Standard sequences preserve being an abstraction. -/
 lemma StandardSeq.isAbs_r (h : StandardSeq m n M N) (ha : IsAbs M) : IsAbs N := by
@@ -350,6 +358,8 @@ lemma StandardSeq.app_cong (hL : StandardSeq m n L L') (hM : StandardSeq a b M M
 
 variable [DecidableEq Var]
 
+/-! ## Standardization -/
+
 /-- Standard reduction is preserved by substitution. -/
 lemma Standard.subst (hM : M ⭢ₛ M') (hN : N ⭢ₛ N') (x : Var) (lc_N : LC N) (lc_N' : LC N') :
     (M[x := N]) ⭢ₛ (M'[x := N']) := by
@@ -473,6 +483,8 @@ theorem Standard.standardization (lc_M : LC M) (step : M ↠βᶠ N) : M ⭢ₛ 
 /-- Standard reduction coincides with full β-reduction on locally closed terms. -/
 theorem Standard.iff_redex (lc_M : LC M) : M ⭢ₛ N ↔ M ↠βᶠ N :=
   ⟨to_redex, standardization lc_M⟩
+
+/-! ## Equivalence with standard sequences -/
 
 /-- Renaming a free variable preserves the position of the contracted redex. -/
 lemma BetaAt.rename (h : BetaAt i M M') (x y : Var) :
